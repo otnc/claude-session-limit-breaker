@@ -9,7 +9,7 @@
 ## 必要なもの
 
 - Node.js 22以上（[Purus](https://purus.work)コンパイラの要件）
-- [Claude Code CLI](https://claude.ai/code) がインストール済み・ログイン済みであること（pm2を動かすユーザーで）
+- [Claude Code CLI](https://code.claude.com/docs/ja/quickstart) がインストール済み・ログイン済みであること（pm2を動かすユーザーで）
 
 ## セットアップ
 

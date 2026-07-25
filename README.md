@@ -9,7 +9,7 @@ For how it works internally (scheduling, limit-detection, i18n, etc.), see [CONT
 ## Requirements
 
 - Node.js 22+ (required by the [Purus](https://purus.work) compiler)
-- [Claude Code CLI](https://claude.ai/code) installed and logged in as the user that will run this (pm2's user)
+- [Claude Code CLI](https://code.claude.com/docs/ja/quickstart) installed and logged in as the user that will run this (pm2's user)
 
 ## Setup
 
