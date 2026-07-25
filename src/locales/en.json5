@@ -1,0 +1,27 @@
+{
+  // Startup log line. {{timesLabel}} = "04:00, 09:10, ...", {{tz}} = IANA zone.
+  started: "claude-session-limit-breaker started (schedule: {{timesLabel}} {{tz}}).",
+
+  // claude auth status --json reported loggedIn: false.
+  loginRequiredLog: "claude is not logged in",
+  loginRequiredTitle: "⚠️ Login required",
+  loginRequiredDesc: "Run `claude auth login` to sign in again.",
+
+  // Session/weekly usage limit detected; see CONTRIBUTING.md for the detection logic.
+  skipLog: "skipped: session/weekly limit reached",
+  skipTitle: "⏭️ Skipped (limit reached)",
+  skipDesc: "Skipped task \"{{task}}\" — the session/weekly usage limit appears to have been reached.\n\n```\n{{snippet}}\n```",
+
+  // Any other failure (process error or `is_error` in the JSON body).
+  errorExecLog: "claude execution failed:",
+  errorRespLog: "claude returned an error:",
+  errorTitle: "❌ Error",
+  errorDesc: "An error occurred while running task \"{{task}}\".\n\n```\n{{text}}\n```",
+
+  // Normal completion.
+  successLogTask: 'task="{{task}}"',
+  successTitle: "✅ Completed",
+  successDesc: "**Task:** {{task}}\n\n{{text}}",
+
+  notifyFailLog: "failed to send Discord notification:",
+}

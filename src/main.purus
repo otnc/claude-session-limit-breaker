@@ -1,0 +1,202 @@
+-- claude-session-limit-breaker. See CONTRIBUTING.md for design notes.
+-- Run: `purus run src/main.purus` (cwd must be the project root).
+
+import dotenv from //;dotenv;//
+import cron from //;node-cron;//
+import YAML from //;yaml;//
+import JSON5 from //;json5;//
+import i18next from //;i18next;//
+import [Webhook; MessageBuilder] from //;minimal-discord-webhook-node;//
+import [execFile] from //;node:child_process;//
+import [promisify] from //;node:util;//
+import [readFileSync] from //;node:fs;//
+use p-datetime as dt
+use p-random as r
+use p-string as s
+use p-json as j
+
+const en be JSON5.parse[readFileSync[//;src/locales/en.json5;//; //;utf-8;//]]
+const ja be JSON5.parse[readFileSync[//;src/locales/ja.json5;//; //;utf-8;//]]
+
+dotenv.config[[override be true, quiet be true]]
+
+fn detect-lang
+  const raw be process.env.LANG coal //;en;//
+  const code be raw.toLowerCase[].slice[0; 2]
+  return if code eq //;ja;// then //;ja;// else //;en;//
+
+const CONFIG be [
+  times be [[4, 0], [9, 10], [14, 20], [19, 30]], -- [hour, minute] pairs, 24h
+  timezone be //;Asia/Tokyo;//,
+  model be //;haiku;//,
+  tasksFile be //;tasks.yaml;//,
+  discordWebhook be process.env.DISCORD_WEBHOOK,
+  lang be detect-lang[]
+]
+
+const COLOR be [
+  success be 3066993,
+  limit be 15844367,
+  failure be 15158332
+]
+
+-- Limit-message detection; see CONTRIBUTING.md for why this needs two arrays.
+const LIMIT-PATTERNS be [
+  /session limit/i,
+  /weekly limit/i,
+  /opus limit/i,
+  /usage limit/i,
+  /rate limit/i,
+  /hit your limit/i,
+  /hit the limit/i,
+  /\d+-hour limit/i,
+  /limit reached/i,
+  /out of extra usage/i,
+  /try again in \d/i,
+  /try again after \d/i
+]
+
+const RESET-PATTERNS be [
+  /resets \d/i,
+  /resets at \d/i,
+  /resets in/i,
+  /resets [A-Za-z]+ \d/i,
+  /try again in \d/i,
+  /try again after \d/i
+]
+
+i18next.init[[
+  lng be CONFIG.lang,
+  resources be [ en be [ translation be en ], ja be [ translation be ja ] ],
+  interpolation be [ escapeValue be false ]
+]]
+
+const t be i18next.t
+
+fn pad2 n to return s.padstart[n.toString[]; 2; //;0;//]
+
+fn time-label pair
+  const [h; m] be pair
+  return //;[pad2[h]]:[pad2[m]];//
+
+fn cron-expr-for pair
+  const [h; m] be pair
+  return //;[m] [h] * * *;//
+
+fn now
+  const t be dt.now[]
+  const y be dt.tzyear[t; CONFIG.timezone]
+  const mo be dt.tzmonth[t; CONFIG.timezone]
+  const d be dt.tzday[t; CONFIG.timezone]
+  const h be dt.tzhour[t; CONFIG.timezone]
+  const mi be dt.tzminute[t; CONFIG.timezone]
+  const se be dt.tzsecond[t; CONFIG.timezone]
+  return //;[y]-[pad2[mo]]-[pad2[d]] [pad2[h]]:[pad2[mi]]:[pad2[se]];//
+
+fn load-tasks
+  const raw be readFileSync[CONFIG.tasksFile; //;utf-8;//]
+  return YAML.parse[raw]
+
+fn pick-task
+  const tasks be load-tasks[]
+  return r.choice[tasks]
+
+fn is-limit-reached text
+  const has-limit be LIMIT-PATTERNS.some[fn p to p.test[text]]
+  const has-reset be RESET-PATTERNS.some[fn p to p.test[text]]
+  return has-limit and has-reset
+
+-- Parses `claude --output-format json`'s `{ is_error, result }` body.
+fn parse-response stdout
+  try
+    const parsed be j.parse[stdout]
+    return [ok be not parsed.is_error, text be parsed.result, json be true]
+  catch parseErr
+    return [ok be false, text be stdout.trim[], json be false]
+
+const exec be promisify[execFile]
+
+-- Normalizes execFile's error-or-resolve shape into an always-resolving
+-- [error, stdout, stderr] tuple, matching promisify's own behavior of
+-- attaching stdout/stderr to the rejection on a non-zero exit.
+async fn run-cmd cmd; args
+  try
+    const result be await exec[cmd; args]
+    return [null, result.stdout, result.stderr]
+  catch execErr
+    return [execErr, execErr.stdout coal //;;//, execErr.stderr coal //;;//]
+
+async fn notify title; description; color
+  unless CONFIG.discordWebhook
+    return
+  try
+    const embed be new MessageBuilder[]
+    embed.setTitle[title]
+    embed.setDescription[description.slice[0; 4000]]
+    embed.setColor[color]
+    embed.setFooter[now[]]
+    embed.setTimestamp[]
+    const hook be new Webhook[CONFIG.discordWebhook]
+    await hook.send[embed]
+  catch notifyErr
+    const msg be t[//;notifyFailLog;//]
+    console.error[//;([now[]]) [msg];//; notifyErr.message]
+
+-- Returns null (unknown) rather than false when the check itself fails, so a
+-- flaky status command can't falsely block a real attempt.
+async fn check-login
+  const [error; stdout; stderr] be await run-cmd[//;claude;//; [//;auth;//, //;status;//, //;--json;//]]
+  if error
+    return null
+  try
+    const status be j.parse[stdout]
+    return status.loggedIn
+  catch parseErr
+    return null
+
+async fn run-claude
+  const logged-in be await check-login[]
+  if logged-in eq false
+    const log-msg be t[//;loginRequiredLog;//]
+    console.error[//;([now[]]) [log-msg];//]
+    await notify[t[//;loginRequiredTitle;//]; t[//;loginRequiredDesc;//]; COLOR.failure]
+    return
+
+  const task be pick-task[]
+  const prompt be //;Perform only the following tasks: [task];//
+  const args be [//;-p;//, prompt, //;--model;//, CONFIG.model, //;--output-format;//, //;json;//]
+  const [error; stdout; stderr] be await run-cmd[//;claude;//; args]
+  const response be parse-response[stdout]
+
+  -- Success is never tested against LIMIT-PATTERNS (see CONTRIBUTING.md).
+  if not error and response.ok
+    const log-msg be t[//;successLogTask;//; [task be task]]
+    console.log[//;([now[]]) [log-msg];//]
+    console.log[response.text]
+    const desc be t[//;successDesc;//; [task be task, text be response.text]]
+    await notify[t[//;successTitle;//]; desc; COLOR.success]
+    return
+
+  const raw-text be stdout add //; ;// add stderr
+
+  if is-limit-reached[raw-text]
+    const snippet be raw-text.trim[].slice[0; 300]
+    const log-msg be t[//;skipLog;//]
+    console.log[//;([now[]]) [log-msg];//]
+    console.log[snippet]
+    const desc be t[//;skipDesc;//; [task be task, snippet be snippet]]
+    await notify[t[//;skipTitle;//]; desc; COLOR.limit]
+    return
+
+  const err-text be if response.json then response.text else error.message
+  const err-log-key be if response.json then //;errorRespLog;// else //;errorExecLog;//
+  const err-log be t[err-log-key]
+  console.error[//;([now[]]) [err-log];//; err-text]
+  const err-desc be t[//;errorDesc;//; [task be task, text be err-text]]
+  await notify[t[//;errorTitle;//]; err-desc; COLOR.failure]
+
+for pair in CONFIG.times
+  cron.schedule[cron-expr-for[pair]; run-claude; [timezone be CONFIG.timezone]]
+
+const times-label be CONFIG.times.map[fn pair to time-label[pair]].join[//;, ;//]
+console.log[t[//;started;//; [timesLabel be times-label, tz be CONFIG.timezone]]]

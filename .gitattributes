@@ -1,0 +1,3 @@
+# Hand-written pm2 config, but not representative of the project's primary
+# language (Purus) — excluded from GitHub's language-percentage stats.
+ecosystem.config.cjs linguist-documentation

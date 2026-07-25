@@ -1,0 +1,35 @@
+{
+  "name": "claude-session-limit-breaker",
+  "version": "1.0.0",
+  "description": "Runs `claude -p` on a fixed daily schedule to keep a Claude Code session active.",
+  "main": "src/main.purus",
+  "scripts": {
+    "start": "purus run src/main.purus",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "purus": "purus",
+    "compile": "purus compile",
+    "exec": "purus run",
+    "format": "prettier --write ./src",
+    "lint": "purus-lint"
+  },
+  "keywords": [],
+  "author": "otoneko.",
+  "license": "WTFPL",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "i18next": "^26.3.6",
+    "json5": "^2.2.3",
+    "minimal-discord-webhook-node": "^1.0.1",
+    "node-cron": "^4.6.0",
+    "purus": "^1.1.0",
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": {
+    "@puruslang/linter": "^1.0.1",
+    "@puruslang/prettier-plugin-purus": "^1.0.1"
+  }
+}
