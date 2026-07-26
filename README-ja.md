@@ -2,7 +2,7 @@
 
 [English](README.md) | **日本語**
 
-日本時間の **4:00 / 9:10 / 14:20 / 19:30**（デフォルト）に `claude -p` を実行し、ランダムな軽いタスクを1つ投げるだけのスクリプトです。[Purus](https://purus.work)で書かれており、Linux上でpm2による常時起動を想定しています。
+日本時間の **3:00 / 8:10 / 13:20 / 18:30**（デフォルト）に `claude -p` を実行し、ランダムな軽いタスクを1つ投げるだけのスクリプトです。[Purus](https://purus.work)で書かれており、Linux上でpm2による常時起動を想定しています。
 
 内部の仕組み（スケジューリング・limit検知・i18nなど）は[CONTRIBUTING.md](CONTRIBUTING.md)（英語）を参照してください。
 
@@ -46,7 +46,7 @@ pm2 stop claude-session-limit-breaker
 
 ```
 const CONFIG be [
-  times be [[4, 0], [9, 10], [14, 20], [19, 30]], -- [時, 分] の配列
+  times be [[3, 0], [8, 10], [13, 20], [18, 30]], -- [時, 分] の配列
   timezone be //;Asia/Tokyo;//,
   model be //;haiku;//,
   tasksFile be //;tasks.yaml;//,

@@ -2,7 +2,7 @@
 
 **English** | [日本語](README-ja.md)
 
-Runs `claude -p` on a fixed daily schedule (default: 04:00 / 09:10 / 14:20 / 19:30 JST), sending one small random task each time. Written in [Purus](https://purus.work) and meant to run continuously on Linux under pm2.
+Runs `claude -p` on a fixed daily schedule (default: 03:00 / 08:10 / 13:20 / 18:30 JST), sending one small random task each time. Written in [Purus](https://purus.work) and meant to run continuously on Linux under pm2.
 
 For how it works internally (scheduling, limit-detection, i18n, etc.), see [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -46,7 +46,7 @@ Everything is in the `CONFIG` block at the top of [src/main.purus](src/main.puru
 
 ```
 const CONFIG be [
-  times be [[4, 0], [9, 10], [14, 20], [19, 30]], -- [hour, minute] pairs, 24h
+  times be [[3, 0], [8, 10], [13, 20], [18, 30]], -- [hour, minute] pairs, 24h
   timezone be //;Asia/Tokyo;//,
   model be //;haiku;//,
   tasksFile be //;tasks.yaml;//,
